@@ -19,6 +19,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	"github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
@@ -334,6 +335,22 @@ func (s *PrecompileTestSuite) TestSend() {
 			expFail: false,
 		},
 		{
+			name: "send with pointer to BaseKeeper",
+			malleate: func() cmn.BankKeeper {
+				bk, ok := s.network.App.GetBankKeeper().(bankkeeper.BaseKeeper)
+				s.Require().True(ok, "expected app bank keeper to be a BaseKeeper value")
+				return &bk
+			},
+			expFail: false,
+		},
+		{
+			name: "send with a keeper wrapping the bank keeper",
+			malleate: func() cmn.BankKeeper {
+				return wrappedBankKeeper{Keeper: s.network.App.GetBankKeeper()}
+			},
+			expFail: false,
+		},
+		{
 			name: "send with MockBankKeeper",
 			malleate: func() cmn.BankKeeper {
 				return mocks.NewBankKeeper(s.T())
@@ -359,4 +376,10 @@ func (s *PrecompileTestSuite) TestSend() {
 			}
 		})
 	}
+}
+
+// wrappedBankKeeper stands in for an app-level keeper that wraps the bank
+// keeper (decimal conversion, metering, send restrictions).
+type wrappedBankKeeper struct {
+	bankkeeper.Keeper
 }
